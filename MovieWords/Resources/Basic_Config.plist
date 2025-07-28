@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Dictions</key>
+	<dict>
+		<key>Dict1</key>
+		<dict>
+			<key>Name</key>
+			<string>牛津英汉汉英词典</string>
+			<key>ShortName</key>
+			<string>com.apple.dictionary.Oxford-Chinese-English</string>
+		</dict>
+	</dict>
+	<key>Info</key>
+	<dict>
+		<key>GitHub</key>
+		<string>https://github.com/P-PPPP</string>
+		<key>Version</key>
+		<string>V0.1</string>
+		<key>Author</key>
+		<string>PP With Love 💗</string>
+	</dict>
+	<key>Settings</key>
+	<dict>
+		<key>HotKeys</key>
+		<integer>49</integer>
+		<key>Currnet_Dictionary</key>
+		<string>Dict1</string>
+	</dict>
+</dict>
+</plist>
