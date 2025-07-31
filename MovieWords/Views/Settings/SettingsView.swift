@@ -3,20 +3,14 @@ import SwiftUI
 struct SettingsView: View {
     
     @StateObject private var viewModel = SettingsViewModel()
-    
-    // 1. 新增状态，用于追踪保存操作是否正在进行
     @State private var isSaving = false
-    
-    private var sortedDictionaries: [(key: String, value: DictionaryInfo)] {
-        viewModel.availableDictionaries.sorted { $0.key < $1.key }
-    }
     
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 16) {
-                    // 当热键被修改后，显示这个提示框
-                    if viewModel.hotkeyDidChange { // <-- 新增的整个 if 代码块
+                    // 热键修改提示
+                    if viewModel.hotkeyDidChange {
                         GroupBox {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
@@ -28,6 +22,7 @@ struct SettingsView: View {
                         }
                     }
                     
+                    // 未保存更改提示
                     if viewModel.isModified {
                         GroupBox {
                             HStack {
@@ -36,26 +31,36 @@ struct SettingsView: View {
                                 Spacer()
                             }
                             .padding(4)
-                            // 移除了颜色代码，使用系统默认强调色
                             .foregroundColor(.accentColor.opacity(0.9))
                         }
                     }
                     
+                    // 核心设置
                     GroupBox {
                         VStack(spacing: 12) {
+                            // MARK: - 修正
+                            // 使用正确的 Toggle 视图代替了不存在的 Switch。
+                            // Toggle 在 macOS 上默认显示为开关样式。
                             HStack {
-                                Text("当前词典")
+                                Text("查询所有词典")
                                 Spacer()
-                                Picker("当前词典", selection: $viewModel.currentSettings.Currnet_Dictionary) {
-                                    ForEach(sortedDictionaries, id: \.key) { key, dict in
-                                        Text(dict.name).tag(key)
-                                    }
-                                }
-                                .labelsHidden()
-                                .frame(minWidth: 200)
-                                .scaledToFit()
+                                Toggle("", isOn: $viewModel.dictControl.Using_All_Dicts)
+                                    .labelsHidden() // 隐藏 Toggle 的内部标签，因为我们在外部已有 Text
+                                    .controlSize(.small)
                             }
-                            Divider() // <-- “当前词典”下方的分割线
+                            
+                            // 选择可用词典
+                            Picker("选择可用字典", selection: $viewModel.dictControl.Selected_Dictionary_ShortName) {
+                                Text("— 未选择 —").tag("")
+                                ForEach(viewModel.availableSystemDictionaries, id: \.shortName) { dictionary in
+                                    Text(dictionary.name).tag(dictionary.shortName)
+                                }
+                            }
+                            .disabled(viewModel.dictControl.Using_All_Dicts)
+                            .frame(maxWidth: 220)
+                            Divider()
+                            
+                            // 热键设置
                             HStack {
                                 Text("热键设置")
                                 Spacer()
@@ -65,9 +70,15 @@ struct SettingsView: View {
                                     }
                                 }
                                 .labelsHidden()
-                                .frame(minWidth: 200)
-                                .scaledToFit()
+                                .frame(maxWidth: 220)
                             }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    // 作者信息等
+                    GroupBox {
+                        VStack(spacing: 12) {
                             HStack {
                                 Text("作者")
                                 Spacer()
@@ -89,6 +100,7 @@ struct SettingsView: View {
                         .padding(.vertical, 8)
                     }
 
+                    // 重置设置
                     GroupBox {
                         HStack {
                             Text("将所有设置恢复为出厂默认值")
@@ -106,18 +118,16 @@ struct SettingsView: View {
             
             Divider()
             
+            // 底部操作栏
             HStack {
                 Spacer()
                 
                 Button("取消") {
                     viewModel.cancelChanges()
                 }
-                // 当正在保存或没有修改时，禁用取消按钮
                 .disabled(!viewModel.isModified || isSaving)
                 
-                // 2. 改进保存按钮，提供加载中反馈
                 Button(action: {
-                    // 使用 Task 来执行异步保存操作
                     Task {
                         isSaving = true
                         await viewModel.saveSettings()
@@ -125,31 +135,26 @@ struct SettingsView: View {
                     }
                 }) {
                     if isSaving {
-                        // 正在保存时，显示一个加载指示器
                         ProgressView()
                             .controlSize(.small)
-                            .padding(.horizontal, 10) // 给指示器一些空间
+                            .padding(.horizontal, 10)
                     } else {
-                        // 不在保存时，显示文本
                         Text("保存")
                     }
                 }
-                // 当正在保存或没有修改时，禁用保存按钮
-                .disabled(!viewModel.isModified || isSaving)
+                .disabled(!viewModel.isModified || isSaving || !viewModel.isSaveConfigurationValid)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
             .background(.bar)
         }
         .navigationTitle("设置")
-        // 3. 移除了 .frame(maxWidth: 600)
         .frame(maxWidth: .infinity)
     }
 }
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        // 预览中也不再需要 accentColor
         SettingsView()
     }
 }

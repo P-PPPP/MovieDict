@@ -1,7 +1,7 @@
 import SwiftUI
 import ScreenCaptureKit
 
-// MARK: - 新增：全屏窗口控制器
+// MARK: - 全屏窗口控制器
 // 这个类将负责创建和管理我们的全屏选择窗口
 class FullScreenWindowController<Content: View>: NSWindowController {
     convenience init(rootView: Content) {
@@ -27,21 +27,22 @@ class FullScreenWindowController<Content: View>: NSWindowController {
     }
 }
 
-
-
 struct HomepageView: View {
     
     // 1. 从 @StateObject 改为 @ObservedObject
     // 它现在观察一个由父视图(ContentView)创建并传递进来的ViewModel
     @ObservedObject var viewModel: HomepageViewModel
     @Environment(\.openURL) private var openURL
+    
     // --- UI State (只保留与本视图相关的临时状态) ---
     @State private var showWindowPicker = false
     @State private var selectionWindowController: FullScreenWindowController<AreaSelectionView>?
     @State private var selectedWindowID: CGWindowID?
     
-    // 视图不再自己持有数据或业务逻辑对象
-    // private let captureHandler = CaptureHandler() // <-- REMOVED
+    // MARK: - Popover 状态管理
+    @State private var popoverTarget: String? // The word that anchors the popover
+    @State private var dictionarySearchResults: [String: [TTTDictionaryEntry]]?
+    @State private var isSearchingDictionary = false
 
     var body: some View {
         ZStack {
@@ -60,7 +61,6 @@ struct HomepageView: View {
         .sheet(isPresented: $showWindowPicker) {
             windowPickerView
         }
-        // v-- 从这里开始添加新的代码 --v
         .alert("需要辅助功能权限", isPresented: $viewModel.showAccessibilityAlert) {
             Button("前往设置") {
                 // 这是一种非常稳定和可靠的打开系统特定设置页面的方法
@@ -72,7 +72,6 @@ struct HomepageView: View {
         } message: {
             Text("需要此权限才能在其他应用中响应全局热键。\n请在“系统设置 > 隐私与安全 > 辅助功能”中启用本应用。")
         }
-        // ^-- 添加代码到这里结束 --^
     }
     
     // MARK: - Subviews
@@ -115,6 +114,7 @@ struct HomepageView: View {
             Spacer()
         }
     }
+    
     /// 捕获中视图 (功能: 显示状态和分组的识别结果)
     private var capturingView: some View {
         ScrollView {
@@ -133,6 +133,25 @@ struct HomepageView: View {
                                         .padding(.vertical, 8)
                                         .background(Color.secondary.opacity(0.1))
                                         .clipShape(Capsule())
+                                        .onTapGesture {
+                                            self.popoverTarget = word // Anchor the popover to this word
+                                            
+                                            // 异步执行词典查询
+                                            Task {
+                                                self.isSearchingDictionary = true
+                                                self.dictionarySearchResults = nil // 清空旧结果
+                                                self.dictionarySearchResults = DictionaryWrapper.searchAccordingToUserSettings(term: word)
+                                                self.isSearchingDictionary = false
+                                            }
+                                        }
+                                        // Popover 修饰符
+                                        .popover(isPresented: .constant(self.popoverTarget == word), arrowEdge: .bottom) {
+                                            dictionaryPopoverView(
+                                                for: word,
+                                                searching: self.isSearchingDictionary,
+                                                results: self.dictionarySearchResults
+                                            )
+                                        }
                                 }
                             }
                             .padding(.bottom, 10) // 让网格和分割线之间有间距
@@ -186,14 +205,14 @@ struct HomepageView: View {
             
             ScrollView {
                 VStack(spacing: 8) {
-                    // 2. 关键: ForEach直接遍历viewModel中的数据源
+                    // 关键: ForEach直接遍历viewModel中的数据源
                     ForEach(viewModel.availableWindows) { window in
                         windowRow(for: window)
                     }
                 }
                 .padding()
             }
-            
+
             Divider()
             
             GroupBox {
@@ -218,6 +237,48 @@ struct HomepageView: View {
             .padding()
         }
         .frame(minWidth: 500, minHeight: 600)
+    }
+    
+    /// 词典查询 Popover 的内容视图
+    @ViewBuilder
+    private func dictionaryPopoverView(for word: String, searching: Bool, results: [String: [TTTDictionaryEntry]]?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("“\(word)” 的释义")
+                .font(.headline)
+            
+            Divider()
+
+            if searching {
+                ProgressView("查询中...")
+            } else if let searchResults = results, !searchResults.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(searchResults.keys.sorted(), id: \.self) { dictionaryName in
+                            GroupBox {
+                                VStack(alignment: .leading) {
+                                    Text(dictionaryName)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    ForEach(searchResults[dictionaryName] ?? [], id: \.self) { entry in
+                                        Text(entry.text)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("未找到释义。")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .frame(minWidth: 300, idealWidth: 400, maxWidth: 500, minHeight: 200, maxHeight: 400)
+        .onDisappear {
+            // 当 popover 关闭时，重置目标以便可以再次打开
+            self.popoverTarget = nil
+        }
     }
     
     /// 用于创建列表中每一行的辅助视图
@@ -285,7 +346,6 @@ struct HomepageView: View {
         self.selectionWindowController = FullScreenWindowController(rootView: areaSelectionView)
         self.selectionWindowController?.show()
     }
-
 }
 
 // MARK: - StartOptionView (可重用组件)
@@ -317,7 +377,6 @@ fileprivate struct StartOptionView: View {
         }
     }
 }
-
 
 struct FloatingIndicatorView: View {
     @State private var isAnimating = false

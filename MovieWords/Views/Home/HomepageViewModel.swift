@@ -37,7 +37,9 @@ class HomepageViewModel: ObservableObject {
     private let captureHandler = CaptureHandler()
     
     init() {
-        loadHotkeySetting()
+        // MARK: - 修改
+        // 调用 loadSettings() 以确保在视图模型初始化时加载了最新的热键配置
+        loadSettings()
         checkPermission()
         
         // 新增：监听“应用即将终止”的通知
@@ -181,11 +183,13 @@ class HomepageViewModel: ObservableObject {
         print("捕获已结束。")
     }
 
-    // MARK: - Hotkey Handling
-    private func loadHotkeySetting() {
+    // MARK: - Hotkey Handling & Settings Loading
+    
+    // MARK: - 修改
+    // 将函数重命名为 loadSettings，以反映其更通用的职责
+    private func loadSettings() {
         let url = AppPath.configURL
 
-        // 单独检查文件是否存在
         guard FileManager.default.fileExists(atPath: url.path) else {
             print("配置文件不存在，使用默认热键 (空格)。")
             return
@@ -194,17 +198,22 @@ class HomepageViewModel: ObservableObject {
         do {
             let data = try Data(contentsOf: url)
             let decoder = PropertyListDecoder()
-            // 我们只需要解码包含热键的部分
+            // 我们只需要解码包含热键和词典设置的部分
             let decodedData = try decoder.decode(AppSettings.self, from: data)
             
             // 更新 hotKeyCode 属性
             self.hotKeyCode = UInt16(decodedData.Settings.HotKeys)
             print("成功加载自定义热键，键码: \(self.hotKeyCode)")
             
+            // 未来可以在这里加载词典相关的设置
+            // let useAllDicts = decodedData.Dict_Control.Using_All_Dicts
+            // let selectedDict = decodedData.Dict_Control.Selected_Dictionary_ShortName
+            
         } catch {
-            print("加载热键配置失败: \(error)。将使用默认热键 (空格)。")
+            print("加载配置失败: \(error)。将使用默认设置。")
         }
     }
+    
     private func startHotKeyMonitor() {
         // --- 第一步：检查权限 ---
         // 'trusted' 参数设为 true 表示我们希望请求权限（如果尚未授予）
@@ -254,4 +263,4 @@ class HomepageViewModel: ObservableObject {
         print("View is disappearing. Cleaning up resources.")
         stopHotKeyMonitor()
     }
-}
+} 

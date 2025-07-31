@@ -2,15 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Dictions</key>
+	<key>Dict_Control</key>
 	<dict>
-		<key>Dict1</key>
-		<dict>
-			<key>Name</key>
-			<string>牛津英汉汉英词典</string>
-			<key>ShortName</key>
-			<string>com.apple.dictionary.Oxford-Chinese-English</string>
-		</dict>
+		<key>Using_All_Dicts</key>
+		<true/>
+		<key>Selected_Dictionary_ShortName</key>
+		<string></string>
 	</dict>
 	<key>Info</key>
 	<dict>
